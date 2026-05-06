@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, CircleMarker } from 'react-leaf
 import L from 'leaflet';
 import { api } from '@services/api';
 import LoadingSpinner from '@components/Common/LoadingSpinner';
+import { formatCrimeType } from '@utils/constants';
 
 // Fix for default marker icons in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -70,7 +71,7 @@ export default function HotspotMap() {
           <CircleMarker
             key={idx}
             center={[hotspot.latitude || 0, hotspot.longitude || 0]}
-            radius={Math.log(hotspot.incidents_count || 1) * 5}
+            radius={hotspot.severity === 'critical' ? 14 : hotspot.severity === 'high' ? 11 : 8}
             fillColor={SEVERITY_COLORS[hotspot.severity] || SEVERITY_COLORS.low}
             color={SEVERITY_COLORS[hotspot.severity] || SEVERITY_COLORS.low}
             weight={2}
@@ -80,6 +81,7 @@ export default function HotspotMap() {
             <Popup>
               <div className="text-xs">
                 <p className="font-bold">{hotspot.region_name || hotspot.name || hotspot.location_name || 'Hotspot'}</p>
+                <p>Type: {hotspot.crime_display_name || formatCrimeType(hotspot.crime_type)}</p>
                 <p>Reports: {hotspot.reports_count || 0}</p>
                 <p className="capitalize">Severity: {hotspot.severity || 'Unknown'}</p>
               </div>

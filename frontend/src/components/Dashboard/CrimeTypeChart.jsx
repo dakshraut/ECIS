@@ -2,6 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { api } from '@services/api';
 import LoadingSpinner from '@components/Common/LoadingSpinner';
+import { environmentalCrimeTypes, formatCrimeType } from '@utils/constants';
+
+const buildCrimeTypeRows = (counts = {}) => environmentalCrimeTypes.map((crime) => ({
+  name: crime.label,
+  count: counts[crime.id] || 0,
+}));
 
 export default function CrimeTypeChart() {
   const [data, setData] = useState([]);
@@ -16,29 +22,21 @@ export default function CrimeTypeChart() {
   const fetchCrimeData = async () => {
     try {
       const response = await api.get('/stats');
-      const crimesByType = response.data?.crimes_by_type || [];
-      
-      // Transform API data to chart format
-      const chartData = Object.entries(crimesByType).map(([type, count]) => ({
-        name: type.charAt(0).toUpperCase() + type.slice(1),
-        count: count,
-      }));
-      
-      setData(chartData.length > 0 ? chartData : DEFAULT_DATA);
+      const crimesByType = response.data?.crime_type_distribution || response.data?.crimes_by_type || {};
+      const knownRows = buildCrimeTypeRows(crimesByType);
+      const knownIds = new Set(environmentalCrimeTypes.map((crime) => crime.id));
+      const extraRows = Object.entries(crimesByType)
+        .filter(([type]) => !knownIds.has(type))
+        .map(([type, count]) => ({ name: formatCrimeType(type), count }));
+
+      setData([...knownRows, ...extraRows]);
       setLoading(false);
     } catch (err) {
       console.error('Failed to fetch crime data:', err);
-      setData(DEFAULT_DATA);
+      setData(buildCrimeTypeRows());
       setLoading(false);
     }
   };
-
-  const DEFAULT_DATA = [
-    { name: 'Mining', count: 0 },
-    { name: 'Logging', count: 0 },
-    { name: 'Pollution', count: 0 },
-    { name: 'Degradation', count: 0 },
-  ];
 
   if (loading) {
     return <LoadingSpinner />;

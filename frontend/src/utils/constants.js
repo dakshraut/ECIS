@@ -14,6 +14,18 @@ export const crimeTypeColors = {
   none: { bg: 'bg-gray-900', text: 'text-gray-400', border: 'border-gray-500' },
 };
 
+export const environmentalCrimeTypes = [
+  { id: 'illegal_mining', label: 'Illegal Mining' },
+  { id: 'illegal_logging', label: 'Illegal Logging' },
+  { id: 'water_pollution', label: 'Water Pollution' },
+  { id: 'land_degradation', label: 'Land Degradation' },
+];
+
+export const formatCrimeType = (crimeType) => {
+  const knownType = environmentalCrimeTypes.find((type) => type.id === crimeType);
+  return knownType?.label || String(crimeType || 'Unknown').replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+};
+
 export const severityColors = {
   critical: { bg: 'bg-red-900', text: 'text-red-400', badge: 'badge-critical' },
   high: { bg: 'bg-orange-900', text: 'text-orange-400', badge: 'badge-high' },

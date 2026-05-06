@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { api } from '@services/api';
 
 export default function Header() {
   const [time, setTime] = useState(new Date());
-  const [apiStatus, setApiStatus] = useState('connected');
+  const [apiStatus, setApiStatus] = useState('checking');
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -15,8 +14,11 @@ export default function Header() {
   useEffect(() => {
     const checkHealth = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/health');
-        setApiStatus(response.ok ? 'connected' : 'error');
+        const [backendHealth, aiHealth] = await Promise.all([
+          fetch('http://localhost:5000/api/health'),
+          fetch('http://127.0.0.1:8000/health'),
+        ]);
+        setApiStatus(backendHealth.ok && aiHealth.ok ? 'active' : 'error');
       } catch {
         setApiStatus('error');
       }
@@ -46,13 +48,15 @@ export default function Header() {
         <div className="flex items-center gap-2">
           <div
             className={`w-3 h-3 rounded-full ${
-              apiStatus === 'connected'
+              apiStatus === 'active'
                 ? 'bg-emerald-400 animate-pulse'
-                : 'bg-red-400'
+                : apiStatus === 'checking'
+                  ? 'bg-yellow-400 animate-pulse'
+                  : 'bg-red-400'
             }`}
           ></div>
           <span className="text-xs text-gray-400">
-            {apiStatus === 'connected' ? 'Connected' : 'Offline'}
+            {apiStatus === 'active' ? 'Active' : apiStatus === 'checking' ? 'Checking' : 'Offline'}
           </span>
         </div>
       </div>

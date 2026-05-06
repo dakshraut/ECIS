@@ -1,121 +1,138 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
+import LoadingSpinner from '@components/Common/LoadingSpinner';
+import useRealTimeStats from '@hooks/useRealTimeStats';
+import { environmentalCrimeTypes } from '@utils/constants';
+
+const buildCrimeBreakdown = (counts = {}) => {
+  const total = environmentalCrimeTypes.reduce((sum, crime) => sum + (counts[crime.id] || 0), 0);
+
+  return environmentalCrimeTypes.map((crime) => {
+    const count = counts[crime.id] || 0;
+    return {
+      ...crime,
+      count,
+      pct: total > 0 ? Math.round((count / total) * 100) : 0,
+    };
+  });
+};
 
 export default function Statistics() {
+  const { stats, loading } = useRealTimeStats();
+  const crimesByType = stats?.crime_type_distribution || stats?.crimes_by_type || {};
+  const crimeBreakdown = useMemo(() => buildCrimeBreakdown(crimesByType), [crimesByType]);
+  const totalSignals = crimeBreakdown.reduce((sum, crime) => sum + crime.count, 0);
+  const responseRate = `${Number(stats?.response_rate || 0).toFixed(1)}%`;
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  const overviewCards = [
+    { label: 'Total Signals', value: totalSignals, color: 'emerald' },
+    { label: 'Critical Crimes', value: stats?.critical_crimes || 0, color: 'cyan' },
+    { label: 'Active Hotspots', value: stats?.active_hotspots || 0, color: 'yellow' },
+    { label: 'Response Rate', value: responseRate, color: 'purple' },
+  ];
+
+  const topRegions = [
+    { name: 'Amazon Rainforest', count: crimesByType.illegal_logging || 0, severity: 'critical' },
+    { name: 'Brazil Mining Region', count: crimesByType.illegal_mining || 0, severity: 'critical' },
+    { name: 'Niger Delta Waterways', count: crimesByType.water_pollution || 0, severity: 'high' },
+    { name: 'Sahel Land Degradation Belt', count: crimesByType.land_degradation || 0, severity: 'high' },
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Page Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="space-y-2 mb-8"
+        className="mb-8 space-y-2"
       >
         <h1 className="text-4xl font-bold text-white">Statistics</h1>
-        <p className="text-gray-400">Detailed analytics and crime statistics</p>
+        <p className="text-gray-400">Detailed analytics across environmental crime categories</p>
       </motion.div>
 
-      {/* Stats Overview */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+        className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4"
       >
-        {[
-          { emoji: '📊', label: 'Total Crimes', value: 1243, color: 'emerald' },
-          { emoji: '✅', label: 'Resolved', value: 856, color: 'cyan' },
-          { emoji: '📈', label: 'Trend (30d)', value: '+12%', color: 'yellow' },
-          { emoji: '📅', label: 'This Month', value: 342, color: 'purple' },
-        ].map((stat, idx) => {
+        {overviewCards.map((stat) => {
           const colorMap = {
             emerald: 'from-emerald-500 to-emerald-600',
             cyan: 'from-cyan-500 to-cyan-600',
             yellow: 'from-yellow-500 to-yellow-600',
             purple: 'from-purple-500 to-purple-600',
           };
+
           return (
             <div
-              key={idx}
-              className="bg-gray-800/50 border border-emerald-500/20 rounded-lg p-6"
+              key={stat.label}
+              className="rounded-lg border border-emerald-500/20 bg-gray-800/50 p-6"
             >
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-gray-400 text-sm">{stat.label}</p>
-                  <p className="text-3xl font-bold text-white mt-2">{stat.value}</p>
+                  <p className="text-sm text-gray-400">{stat.label}</p>
+                  <p className="mt-2 text-3xl font-bold text-white">{stat.value}</p>
                 </div>
                 <div
-                  className={`w-12 h-12 rounded-lg bg-gradient-to-br ${colorMap[stat.color]} flex items-center justify-center text-xl`}
-                >
-                  {stat.emoji}
-                </div>
+                  className={`h-12 w-12 rounded-lg bg-gradient-to-br ${colorMap[stat.color]}`}
+                  aria-hidden="true"
+                />
               </div>
             </div>
           );
         })}
       </motion.div>
 
-      {/* Detailed Statistics Sections */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+        className="grid grid-cols-1 gap-6 lg:grid-cols-2"
       >
-        {/* By Crime Type */}
-        <div className="bg-gray-800/50 border border-emerald-500/20 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Crimes by Type</h3>
+        <div className="rounded-lg border border-emerald-500/20 bg-gray-800/50 p-6">
+          <h3 className="mb-4 text-lg font-semibold text-white">Crimes by Type</h3>
           <div className="space-y-3">
-            {[
-              { name: 'Illegal Mining', count: 345, pct: 28 },
-              { name: 'Illegal Logging', count: 289, pct: 23 },
-              { name: 'Water Pollution', count: 421, pct: 34 },
-              { name: 'Land Degradation', count: 188, pct: 15 },
-            ].map((crime, idx) => (
-              <div key={idx}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-300">{crime.name}</span>
-                  <span className="text-emerald-400 font-semibold">{crime.count}</span>
+            {crimeBreakdown.map((crime) => (
+              <div key={crime.id}>
+                <div className="mb-1 flex justify-between text-sm">
+                  <span className="text-gray-300">{crime.label}</span>
+                  <span className="font-semibold text-emerald-400">{crime.count}</span>
                 </div>
-                <div className="w-full bg-gray-700/50 rounded-full h-2">
+                <div className="h-2 w-full rounded-full bg-gray-700/50">
                   <div
-                    className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-2 rounded-full"
+                    className="h-2 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600"
                     style={{ width: `${crime.pct}%` }}
-                  ></div>
+                  />
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* By Region */}
-        <div className="bg-gray-800/50 border border-emerald-500/20 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Top Regions</h3>
+        <div className="rounded-lg border border-emerald-500/20 bg-gray-800/50 p-6">
+          <h3 className="mb-4 text-lg font-semibold text-white">Top Regions</h3>
           <div className="space-y-3">
-            {[
-              { name: 'Amazon Basin', count: 234, severity: 'critical' },
-              { name: 'Congo Rainforest', count: 189, severity: 'high' },
-              { name: 'Southeast Asia', count: 156, severity: 'high' },
-              { name: 'Madagascar', count: 98, severity: 'medium' },
-            ].map((region, idx) => {
+            {topRegions.map((region) => {
               const severityColors = {
                 critical: 'bg-red-500/20 border-red-500/50 text-red-400',
                 high: 'bg-orange-500/20 border-orange-500/50 text-orange-400',
                 medium: 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400',
                 low: 'bg-green-500/20 border-green-500/50 text-green-400',
               };
+
               return (
                 <div
-                  key={idx}
-                  className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg"
+                  key={region.name}
+                  className="flex items-center justify-between rounded-lg bg-gray-700/50 p-3"
                 >
                   <div>
-                    <p className="text-white font-semibold">{region.name}</p>
-                    <p className="text-xs text-gray-400">{region.count} incidents</p>
+                    <p className="font-semibold text-white">{region.name}</p>
+                    <p className="text-xs text-gray-400">{region.count} signals</p>
                   </div>
-                  <span
-                    className={`px-2 py-1 rounded text-xs font-semibold ${
-                      severityColors[region.severity]
-                    }`}
-                  >
+                  <span className={`rounded border px-2 py-1 text-xs font-semibold ${severityColors[region.severity]}`}>
                     {region.severity}
                   </span>
                 </div>
@@ -125,23 +142,22 @@ export default function Statistics() {
         </div>
       </motion.div>
 
-      {/* Temporal Analysis */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="bg-gray-800/50 border border-emerald-500/20 rounded-lg p-6"
+        className="rounded-lg border border-emerald-500/20 bg-gray-800/50 p-6"
       >
-        <h3 className="text-lg font-semibold text-white mb-6">Detection Timeline</h3>
+        <h3 className="mb-6 text-lg font-semibold text-white">Detection Timeline</h3>
         <div className="space-y-2 text-sm">
           <p className="text-gray-400">
-            📈 Detection rate has increased by <span className="text-emerald-400 font-semibold">23%</span> over the last 30 days
+            Live reports: <span className="font-semibold text-emerald-400">{stats?.total_reports || 0}</span>
           </p>
           <p className="text-gray-400">
-            🔍 Average confidence score: <span className="text-emerald-400 font-semibold">87.5%</span>
+            Average risk score: <span className="font-semibold text-emerald-400">{Number(stats?.avg_risk_score || 0).toFixed(1)}</span>
           </p>
           <p className="text-gray-400">
-            ⏱️ Average response time: <span className="text-emerald-400 font-semibold">2.3 hours</span>
+            Data refreshes every <span className="font-semibold text-emerald-400">10 seconds</span>
           </p>
         </div>
       </motion.div>
