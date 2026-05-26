@@ -9,6 +9,7 @@ import '@styles/index.css';
 const LocationAnalysis = lazy(() => import('@pages/LocationAnalysis'));
 const Dashboard = lazy(() => import('@pages/Dashboard'));
 const CrimeDetection = lazy(() => import('@pages/Detection'));
+const TimeMachine = lazy(() => import('@pages/TimeMachine'));
 const Reports = lazy(() => import('@pages/Reports'));
 const Hotspots = lazy(() => import('@pages/Hotspots'));
 const Statistics = lazy(() => import('@pages/Statistics'));
@@ -30,6 +31,7 @@ function App() {
             <Route path="/" element={<Suspense fallback={<LoadingSpinner fullScreen />}><Dashboard /></Suspense>} />
             <Route path="/dashboard" element={<Suspense fallback={<LoadingSpinner fullScreen />}><Dashboard /></Suspense>} />
             <Route path="/analyze" element={<Suspense fallback={<LoadingSpinner fullScreen />}><LocationAnalysis /></Suspense>} />
+            <Route path="/time-machine" element={<Suspense fallback={<LoadingSpinner fullScreen />}><TimeMachine /></Suspense>} />
             <Route path="/satellite" element={<Navigate to="/analyze" replace />} />
             <Route path="/detection" element={<Suspense fallback={<LoadingSpinner fullScreen />}><CrimeDetection /></Suspense>} />
             <Route path="/reports" element={<Suspense fallback={<LoadingSpinner fullScreen />}><Reports /></Suspense>} />

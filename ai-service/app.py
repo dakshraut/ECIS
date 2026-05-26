@@ -1050,6 +1050,116 @@ class EnvironmentalRiskEngine:
             "response_time": "Monthly check",
         }
 
+    def generate_time_machine(self, lat: float, lon: float, years: int = 5) -> Dict:
+        years = max(2, min(10, int(years or 5)))
+        current_year = datetime.now().year
+        current = self.analyze_coordinates(lat, lon)
+        crime_type = current["crime_type_prediction"]
+        land_use = current["land_use_type"]
+        current_risk = float(current["risk_score"])
+
+        hotspot_pressure = max((hotspot["risk_score"] for hotspot in current["nearby_hotspots"]), default=0)
+        base_velocity = {
+            CrimeType.ILLEGAL_LOGGING.value: 2.8,
+            CrimeType.ILLEGAL_MINING.value: 3.2,
+            CrimeType.WATER_POLLUTION.value: 2.4,
+            CrimeType.LAND_DEGRADATION.value: 2.1,
+            CrimeType.AIR_POLLUTION.value: 1.8,
+            CrimeType.NO_CRIME.value: 0.6,
+        }.get(crime_type, 1.2)
+        land_pressure = {
+            "forest": 1.2,
+            "mining_area": 1.35,
+            "water": 1.15,
+            "industrial": 1.25,
+            "agricultural": 1.1,
+            "urban": 0.75,
+            "mixed": 0.65,
+        }.get(land_use, 0.6)
+        annual_change = min(6.5, base_velocity * land_pressure + hotspot_pressure * 0.015)
+
+        snapshots = []
+        for index in range(years + 1):
+            year = current_year - years + index
+            age = current_year - year
+            wave = self.coordinate_variation(lat + index * 0.17, lon - index * 0.11) - 4
+            risk = max(0, min(100, current_risk - age * annual_change + wave))
+            vegetation = max(0, min(100, 82 - risk * 0.55 + (12 if land_use == "forest" else 0)))
+            water_quality = max(0, min(100, 88 - risk * (0.62 if crime_type == CrimeType.WATER_POLLUTION.value else 0.28)))
+            disturbance = max(0, min(100, risk * 0.88 + (10 if hotspot_pressure > 50 else 0)))
+            snapshots.append(
+                {
+                    "year": year,
+                    "risk_score": round(risk, 1),
+                    "vegetation_health": round(vegetation, 1),
+                    "water_quality": round(water_quality, 1),
+                    "disturbance_index": round(disturbance, 1),
+                    "dominant_signal": get_display_name(crime_type),
+                }
+            )
+
+        first = snapshots[0]["risk_score"]
+        last = snapshots[-1]["risk_score"]
+        delta = round(last - first, 1)
+        trend = "rising" if delta >= 6 else "declining" if delta <= -6 else "stable"
+
+        event_labels = {
+            CrimeType.ILLEGAL_LOGGING.value: "Vegetation loss signature widened",
+            CrimeType.ILLEGAL_MINING.value: "Exposed soil and extraction signature expanded",
+            CrimeType.WATER_POLLUTION.value: "Water quality stress increased",
+            CrimeType.LAND_DEGRADATION.value: "Land cover degradation intensified",
+            CrimeType.AIR_POLLUTION.value: "Industrial pressure signature increased",
+        }
+        key_events = [
+            {
+                "year": snapshots[max(1, years // 3)]["year"],
+                "title": "Baseline established",
+                "detail": f"{land_use.replace('_', ' ').title()} context resolved with {current['data_confidence']}% data confidence.",
+            },
+            {
+                "year": snapshots[max(1, (years * 2) // 3)]["year"],
+                "title": event_labels.get(crime_type, "Environmental signal changed"),
+                "detail": f"{get_display_name(crime_type)} became the dominant modeled signal.",
+            },
+            {
+                "year": current_year,
+                "title": "Current intelligence snapshot",
+                "detail": f"Current risk is {current_risk}/100 with {len(current['nearby_hotspots'])} nearby curated hotspots.",
+            },
+        ]
+
+        brief = {
+            "headline": f"{current['region_name']} shows a {trend} environmental risk trajectory",
+            "summary": (
+                f"Modeled risk changed by {delta:+.1f} points over {years} years. "
+                f"The strongest current signal is {get_display_name(crime_type)} in a {land_use.replace('_', ' ')} context."
+            ),
+            "recommended_next_step": current["recommendations"]["immediate_action"],
+            "confidence_note": (
+                "Time Machine uses current geospatial evidence plus deterministic historical modeling. "
+                "Treat it as an investigation guide, not legal proof."
+            ),
+        }
+
+        return {
+            "success": True,
+            "coordinates": {"lat": lat, "lon": lon},
+            "region_name": current["region_name"],
+            "land_use_type": land_use,
+            "crime_type_prediction": crime_type,
+            "crime_display_name": current["crime_display_name"],
+            "current_risk_score": current["risk_score"],
+            "risk_delta": delta,
+            "trend": trend,
+            "snapshots": snapshots,
+            "key_events": key_events,
+            "case_brief": brief,
+            "evidence_items": current["evidence_items"][:6],
+            "nearby_hotspots": current["nearby_hotspots"],
+            "data_confidence": current["data_confidence"],
+            "timestamp": datetime.now().isoformat(),
+        }
+
 
 risk_engine = EnvironmentalRiskEngine()
 reports_db: List[Dict] = []
@@ -1140,6 +1250,19 @@ async def analyze_location(latitude: float = Body(...), longitude: float = Body(
         }
     except Exception as exc:
         logger.error("Location analysis error: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/api/v1/time-machine")
+async def environmental_time_machine(
+    latitude: float = Body(...),
+    longitude: float = Body(...),
+    years: int = Body(5),
+):
+    try:
+        return risk_engine.generate_time_machine(latitude, longitude, years)
+    except Exception as exc:
+        logger.error("Time machine analysis error: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 

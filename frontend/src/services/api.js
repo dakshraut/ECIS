@@ -47,6 +47,13 @@ export const crimeService = {
       longitude,
     }),
 
+  runTimeMachine: (latitude, longitude, years = 5) =>
+    api.post('/time-machine', {
+      latitude,
+      longitude,
+      years,
+    }),
+
   getNearbyHotspots: (lat, lon, radius = 100) =>
     api.get('/hotspots/nearby', {
       params: { lat, lon, radius_km: radius },
@@ -88,6 +95,15 @@ export const analyzeLocation = async (latitude, longitude) => {
   const response = await api.post('/analyze-location', {
     latitude,
     longitude,
+  });
+  return response.data;
+};
+
+export const runTimeMachine = async (latitude, longitude, years = 5) => {
+  const response = await api.post('/time-machine', {
+    latitude,
+    longitude,
+    years,
   });
   return response.data;
 };

@@ -38,6 +38,7 @@ router.get('/hotspots/nearby', (req, res) => proxyRequest(req, res, 'get', '/api
 router.get('/region/info', (req, res) => proxyRequest(req, res, 'get', '/api/v1/region/info'));
 router.get('/data-sources', (req, res) => proxyRequest(req, res, 'get', '/api/v1/data-sources'));
 router.post('/analyze-location', (req, res) => proxyRequest(req, res, 'post', '/api/v1/analyze-location'));
+router.post('/time-machine', (req, res) => proxyRequest(req, res, 'post', '/api/v1/time-machine'));
 router.post('/reports/submit', (req, res) => proxyRequest(req, res, 'post', '/api/v1/reports/submit'));
 
 module.exports = router;
