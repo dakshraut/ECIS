@@ -29,17 +29,22 @@ app.use((req, res, next) => {
 });
 
 // ==================== DATABASE CONNECTION ====================
-if (!process.env.MONGODB_URI) {
-  console.error('❌ MONGODB_URI is not defined in .env file');
-  process.exit(1);
-}
+const dbUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ecis';
 
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ MongoDB Connected Successfully'))
-  .catch(err => {
-    console.error('❌ MongoDB Connection Error:', err.message);
-    process.exit(1);
-  });
+const connectDB = async () => {
+  try {
+    await mongoose.connect(dbUri, {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000
+    });
+    console.log(`✅ MongoDB Connected Successfully to ${mongoose.connection.host}`);
+  } catch (err) {
+    console.error('⚠️ MongoDB Connection Error:', err.message);
+    console.warn('⚠️ Continuing without MongoDB. Start MongoDB or update MONGODB_URI to a reachable server.');
+  }
+};
+
+connectDB();
 
 // ==================== ROUTES ====================
 app.use('/api/auth', authRoutes);
