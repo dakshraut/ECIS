@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { api } from '@services/api';
+import { geoApi } from '@services/api';
 import LoadingSpinner from '@components/Common/LoadingSpinner';
 
 export default function TrendsChart() {
@@ -15,8 +15,8 @@ export default function TrendsChart() {
 
   const fetchTrendData = async () => {
     try {
-      const response = await api.get('/reports?limit=1000');
-      const reports = response.data?.data || [];
+      const response = await geoApi.get('/reports?limit=1000');
+      const reports = response.data?.reports || response.data?.data || [];
 
       // Group reports by day
       const dayMap = {};
@@ -30,7 +30,7 @@ export default function TrendsChart() {
 
       // Count reports per day
       reports.forEach((report) => {
-        const date = new Date(report.created_at);
+        const date = new Date(report.created_at || report.timestamp);
         const key = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         if (dayMap.hasOwnProperty(key)) {
           dayMap[key]++;

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { api } from '@services/api';
+import { geoApi } from '@services/api';
 import LoadingSpinner from '@components/Common/LoadingSpinner';
 
 const COLORS = ['#ef4444', '#f97316', '#eab308', '#10b981'];
@@ -17,8 +17,8 @@ export default function RiskLevelChart() {
 
   const fetchRiskData = async () => {
     try {
-      const response = await api.get('/stats');
-      const riskData = response.data?.risk_distribution || {};
+      const response = await geoApi.get('/stats');
+      const riskData = response.data?.severity_distribution || response.data?.risk_distribution || {};
       
       const chartData = [
         { name: 'Critical', value: riskData.critical || 0 },

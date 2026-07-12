@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CircleMarker, MapContainer, Popup, TileLayer } from 'react-leaflet';
 import L from 'leaflet';
-import { api } from '@services/api';
+import { geoApi } from '@services/api';
 import LoadingSpinner from '@components/Common/LoadingSpinner';
 import { formatCrimeType } from '@utils/constants';
 
@@ -31,7 +31,7 @@ export default function HotspotMap() {
 
   const fetchHotspots = useCallback(async () => {
     try {
-      const response = await api.get('/hotspots');
+      const response = await geoApi.get('/hotspots');
       const hotspotsData = response.data?.hotspots || response.data?.data || [];
       setHotspots(hotspotsData);
       setError(false);

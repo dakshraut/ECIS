@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api } from '@services/api';
+import { geoApi } from '@services/api';
 
 export const useRealTimeStats = (refreshInterval = 10000) => {
   const [stats, setStats] = useState(null);
@@ -9,7 +9,7 @@ export const useRealTimeStats = (refreshInterval = 10000) => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await api.get('/stats');
+        const response = await geoApi.get('/stats');
         setStats(response.data);
         setError(null);
       } catch (err) {
@@ -23,7 +23,7 @@ export const useRealTimeStats = (refreshInterval = 10000) => {
           total_area_affected: 0,
           response_rate: 0,
           crimes_by_type: {},
-          risk_distribution: {},
+          severity_distribution: {},
         });
       } finally {
         setLoading(false);

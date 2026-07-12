@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const DEFAULT_API_BASE_URL = 'http://localhost:5000/api';
+const DEFAULT_GEO_API_BASE_URL = 'http://localhost:5000/api/v1';
 const FALLBACK_API_BASE_URLS = [
   'http://localhost:5001/api',
   'http://127.0.0.1:5000/api',
@@ -25,8 +26,8 @@ const resolveApiBaseUrl = async () => {
   return preferred;
 };
 
-let apiBaseUrl = DEFAULT_API_BASE_URL;
-let geoApiBaseUrl = `${DEFAULT_API_BASE_URL}/v1`;
+let apiBaseUrl = import.meta.env.VITE_API_URL || DEFAULT_API_BASE_URL;
+let geoApiBaseUrl = import.meta.env.VITE_GEO_API_URL || `${apiBaseUrl.replace(/\/$/, '')}/v1`;
 
 const createApiClient = (baseURL) => axios.create({
   baseURL,
@@ -40,15 +41,16 @@ const geoApi = createApiClient(geoApiBaseUrl);
 
 const updateClients = (baseURL) => {
   api.defaults.baseURL = baseURL;
-  geoApi.defaults.baseURL = `${baseURL.replace(/\/api$/, '')}/v1`;
+  geoApi.defaults.baseURL = import.meta.env.VITE_GEO_API_URL || `${baseURL.replace(/\/$/, '')}/v1`;
 };
 
 resolveApiBaseUrl().then((resolvedBaseUrl) => {
   apiBaseUrl = resolvedBaseUrl;
-  geoApiBaseUrl = `${resolvedBaseUrl.replace(/\/api$/, '')}/v1`;
+  geoApiBaseUrl = import.meta.env.VITE_GEO_API_URL || `${resolvedBaseUrl.replace(/\/$/, '')}/v1`;
   updateClients(resolvedBaseUrl);
 }).catch(() => {
-  updateClients(DEFAULT_API_BASE_URL);
+  api.defaults.baseURL = DEFAULT_API_BASE_URL;
+  geoApi.defaults.baseURL = import.meta.env.VITE_GEO_API_URL || DEFAULT_GEO_API_BASE_URL;
 });
 
 // Add token to requests
@@ -194,5 +196,5 @@ export const violationService = {
     api.get('/violations/analytics'),
 };
 
-export { api };
+export { api, geoApi };
 export default api;

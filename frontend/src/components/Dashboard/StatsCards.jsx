@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { api } from '@services/api';
+import { geoApi } from '@services/api';
 import LoadingSpinner from '@components/Common/LoadingSpinner';
 
 const STAT_EMOJI = {
@@ -22,7 +22,7 @@ export default function StatsCards() {
 
   const fetchStats = async () => {
     try {
-      const response = await api.get('/stats');
+      const response = await geoApi.get('/stats');
       setStats(response.data);
       setError(null);
     } catch (err) {

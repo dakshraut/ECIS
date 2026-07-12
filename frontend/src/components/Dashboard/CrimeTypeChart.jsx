@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { api } from '@services/api';
+import { geoApi } from '@services/api';
 import LoadingSpinner from '@components/Common/LoadingSpinner';
 import { environmentalCrimeTypes, formatCrimeType } from '@utils/constants';
 
@@ -21,7 +21,7 @@ export default function CrimeTypeChart() {
 
   const fetchCrimeData = async () => {
     try {
-      const response = await api.get('/stats');
+      const response = await geoApi.get('/stats');
       const crimesByType = response.data?.crime_type_distribution || response.data?.crimes_by_type || {};
       const knownRows = buildCrimeTypeRows(crimesByType);
       const knownIds = new Set(environmentalCrimeTypes.map((crime) => crime.id));

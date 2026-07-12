@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { api } from '@services/api';
+import { geoApi } from '@services/api';
 import LoadingSpinner from '@components/Common/LoadingSpinner';
 
 const SEVERITY_COLORS = {
@@ -21,7 +21,7 @@ export default function RecentAlerts() {
 
   const fetchAlerts = async () => {
     try {
-      const response = await api.get('/reports?limit=5&sort=-created_at');
+      const response = await geoApi.get('/reports?limit=5&sort=-timestamp');
       setAlerts(response.data?.reports || response.data?.data || []);
       setLoading(false);
     } catch (err) {
