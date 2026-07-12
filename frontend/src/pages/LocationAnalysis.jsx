@@ -1,16 +1,22 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Database, Info, ListChecks, LocateFixed, MapPin, Newspaper, Radar, ShieldCheck } from 'lucide-react';
 import { CircleMarker, MapContainer, TileLayer, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import RiskMeter from '@components/RiskMeter';
 import { analyzeLocation } from '@services/api';
 
-function LocationPicker({ latitude, longitude, onPick }) {
-  useMapEvents({
+function LocationPicker({ latitude, longitude, onPick, active }) {
+  const map = useMapEvents({
     click(event) {
       onPick(event.latlng.lat.toFixed(6), event.latlng.lng.toFixed(6));
     },
   });
+
+  useEffect(() => {
+    if (active && latitude && longitude) {
+      map.setView([Number(latitude), Number(longitude)], Math.max(map.getZoom(), 8), { animate: true });
+    }
+  }, [active, latitude, longitude, map]);
 
   if (!latitude || !longitude) {
     return null;
@@ -19,11 +25,12 @@ function LocationPicker({ latitude, longitude, onPick }) {
   return (
     <CircleMarker
       center={[Number(latitude), Number(longitude)]}
-      radius={9}
+      radius={11}
       pathOptions={{
         color: '#34d399',
         fillColor: '#34d399',
-        fillOpacity: 0.75,
+        fillOpacity: 0.85,
+        weight: 3,
       }}
     />
   );
@@ -35,6 +42,24 @@ export default function LocationAnalysis() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [mapCenter, setMapCenter] = useState([20, 78]);
+  const [mapKey, setMapKey] = useState(0);
+  const [hasSelectedPoint, setHasSelectedPoint] = useState(false);
+
+  const syncSelection = (nextLatitude, nextLongitude) => {
+    const lat = Number(nextLatitude);
+    const lon = Number(nextLongitude);
+
+    if (Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+      setMapCenter([lat, lon]);
+      setHasSelectedPoint(true);
+      setMapKey((value) => value + 1);
+      return true;
+    }
+
+    setHasSelectedPoint(false);
+    return false;
+  };
 
   const handleAnalyze = async () => {
     if (!latitude || !longitude) {
@@ -48,6 +73,7 @@ export default function LocationAnalysis() {
     try {
       const data = await analyzeLocation(Number(latitude), Number(longitude));
       setResult(data);
+      syncSelection(latitude, longitude);
     } catch (err) {
       setError(err.response?.data?.detail || 'Location analysis failed.');
     } finally {
@@ -58,8 +84,11 @@ export default function LocationAnalysis() {
   const handlePick = (lat, lon) => {
     setLatitude(lat);
     setLongitude(lon);
+    syncSelection(lat, lon);
     setError(null);
   };
+
+  const mapReady = useMemo(() => Boolean(latitude && longitude), [latitude, longitude]);
 
   return (
     <div className="space-y-6">
@@ -83,12 +112,12 @@ export default function LocationAnalysis() {
           </div>
 
           <div className="h-[28rem] overflow-hidden rounded-lg border border-gray-700">
-            <MapContainer center={[20, 78]} zoom={4} className="h-full w-full">
+            <MapContainer key={mapKey} center={mapCenter} zoom={5} className="h-full w-full">
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
-              <LocationPicker latitude={latitude} longitude={longitude} onPick={handlePick} />
+              <LocationPicker latitude={latitude} longitude={longitude} onPick={handlePick} active={mapReady && hasSelectedPoint} />
             </MapContainer>
           </div>
 
@@ -98,7 +127,13 @@ export default function LocationAnalysis() {
               <input
                 type="number"
                 value={latitude}
-                onChange={(event) => setLatitude(event.target.value)}
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  setLatitude(nextValue);
+                  if (nextValue !== '' && longitude !== '') {
+                    syncSelection(nextValue, longitude);
+                  }
+                }}
                 className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-3 text-white outline-none transition focus:border-emerald-400"
                 placeholder="-3.4653"
                 step="any"
@@ -109,7 +144,13 @@ export default function LocationAnalysis() {
               <input
                 type="number"
                 value={longitude}
-                onChange={(event) => setLongitude(event.target.value)}
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  setLongitude(nextValue);
+                  if (nextValue !== '' && latitude !== '') {
+                    syncSelection(latitude, nextValue);
+                  }
+                }}
                 className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-3 text-white outline-none transition focus:border-emerald-400"
                 placeholder="-62.2159"
                 step="any"

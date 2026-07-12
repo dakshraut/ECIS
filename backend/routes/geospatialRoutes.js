@@ -7,10 +7,12 @@ const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000';
 const AI_SERVICE_TIMEOUT = 30000;
 
 const proxyRequest = async (req, res, method, path) => {
+  const targetUrl = `${AI_SERVICE_URL}${path}`;
+
   try {
     const response = await axios({
       method,
-      url: `${AI_SERVICE_URL}${path}`,
+      url: targetUrl,
       params: req.query,
       data: req.body,
       timeout: AI_SERVICE_TIMEOUT,
@@ -22,10 +24,14 @@ const proxyRequest = async (req, res, method, path) => {
     res.status(response.status).json(response.data);
   } catch (error) {
     const status = error.response?.status || 502;
+    const message = error.response?.data?.detail || error.response?.data?.message || error.message;
+
+    console.error(`❌ Geospatial proxy failed for ${method.toUpperCase()} ${targetUrl}:`, message);
     res.status(status).json({
       success: false,
-      message: error.response?.data?.detail || error.response?.data?.message || error.message,
+      message: message || 'Geospatial service is currently unavailable.',
       upstream: AI_SERVICE_URL,
+      path,
     });
   }
 };
@@ -40,5 +46,13 @@ router.get('/data-sources', (req, res) => proxyRequest(req, res, 'get', '/api/v1
 router.post('/analyze-location', (req, res) => proxyRequest(req, res, 'post', '/api/v1/analyze-location'));
 router.post('/time-machine', (req, res) => proxyRequest(req, res, 'post', '/api/v1/time-machine'));
 router.post('/reports/submit', (req, res) => proxyRequest(req, res, 'post', '/api/v1/reports/submit'));
+
+router.get('/health', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Geospatial routes are available.',
+    upstream: AI_SERVICE_URL,
+  });
+});
 
 module.exports = router;

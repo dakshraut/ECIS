@@ -8,9 +8,10 @@ export default function MainLayout() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-emerald-900 to-gray-900">
       <Sidebar />
       <Header />
-      {/* Main Content - with margin-left to accommodate sidebar */}
-      <main className="ml-72 mt-16 p-6 min-h-screen">
-        <Outlet />
+      <main className="ml-72 pt-20 pb-8 px-6 min-h-screen overflow-x-hidden">
+        <div className="mx-auto max-w-7xl">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

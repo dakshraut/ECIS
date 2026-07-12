@@ -1,33 +1,85 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const DEFAULT_API_BASE_URL = 'http://localhost:5000/api';
+const FALLBACK_API_BASE_URLS = [
+  'http://localhost:5001/api',
+  'http://127.0.0.1:5000/api',
+  'http://127.0.0.1:5001/api',
+];
 
-const api = axios.create({
-  baseURL: API_BASE_URL,
+const resolveApiBaseUrl = async () => {
+  const preferred = import.meta.env.VITE_API_URL || DEFAULT_API_BASE_URL;
+  const candidateUrls = [preferred, ...FALLBACK_API_BASE_URLS.filter((url) => url !== preferred)];
+
+  for (const url of candidateUrls) {
+    try {
+      const response = await axios.get(`${url}/health`, { timeout: 1500 });
+      if (response?.status === 200) {
+        return url;
+      }
+    } catch {
+      // Continue to the next candidate.
+    }
+  }
+
+  return preferred;
+};
+
+let apiBaseUrl = DEFAULT_API_BASE_URL;
+let geoApiBaseUrl = `${DEFAULT_API_BASE_URL}/v1`;
+
+const createApiClient = (baseURL) => axios.create({
+  baseURL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
+const api = createApiClient(apiBaseUrl);
+const geoApi = createApiClient(geoApiBaseUrl);
+
+const updateClients = (baseURL) => {
+  api.defaults.baseURL = baseURL;
+  geoApi.defaults.baseURL = `${baseURL.replace(/\/api$/, '')}/v1`;
+};
+
+resolveApiBaseUrl().then((resolvedBaseUrl) => {
+  apiBaseUrl = resolvedBaseUrl;
+  geoApiBaseUrl = `${resolvedBaseUrl.replace(/\/api$/, '')}/v1`;
+  updateClients(resolvedBaseUrl);
+}).catch(() => {
+  updateClients(DEFAULT_API_BASE_URL);
+});
+
 // Add token to requests
-api.interceptors.request.use((config) => {
+const attachAuthToken = (config) => {
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
-});
+};
+
+api.interceptors.request.use(attachAuthToken);
+geoApi.interceptors.request.use(attachAuthToken);
 
 // Handle response errors
+const handleAuthError = (error) => {
+  if (error.response?.status === 401) {
+    localStorage.removeItem('token');
+    window.location.href = '/login';
+  }
+  return Promise.reject(error);
+};
+
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
+  handleAuthError
+);
+
+geoApi.interceptors.response.use(
+  (response) => response,
+  handleAuthError
 );
 
 // Auth endpoints
@@ -42,28 +94,28 @@ export const authService = {
 // AI Integration endpoints
 export const crimeService = {
   analyzeLocation: (latitude, longitude) =>
-    api.post('/analyze-location', {
+    geoApi.post('/analyze-location', {
       latitude,
       longitude,
     }),
 
   runTimeMachine: (latitude, longitude, years = 5) =>
-    api.post('/time-machine', {
+    geoApi.post('/time-machine', {
       latitude,
       longitude,
       years,
     }),
 
   getNearbyHotspots: (lat, lon, radius = 100) =>
-    api.get('/hotspots/nearby', {
+    geoApi.get('/hotspots/nearby', {
       params: { lat, lon, radius_km: radius },
     }),
 
   submitReport: (reportData) =>
-    api.post('/reports/submit', reportData),
+    geoApi.post('/reports/submit', reportData),
 
   getRegionInfo: (lat, lon) =>
-    api.get('/region/info', {
+    geoApi.get('/region/info', {
       params: { lat, lon },
     }),
 
@@ -79,20 +131,20 @@ export const crimeService = {
     api.post('/ai-integration/batch-detect', { locations }),
   
   getHotspots: () =>
-    api.get('/hotspots'),
+    geoApi.get('/hotspots'),
   
   getStats: () =>
-    api.get('/stats'),
+    geoApi.get('/stats'),
   
   getReports: () =>
-    api.get('/reports'),
+    geoApi.get('/reports'),
   
   checkHealth: () =>
     api.get('/ai-integration/health'),
 };
 
 export const analyzeLocation = async (latitude, longitude) => {
-  const response = await api.post('/analyze-location', {
+  const response = await geoApi.post('/analyze-location', {
     latitude,
     longitude,
   });
@@ -100,7 +152,7 @@ export const analyzeLocation = async (latitude, longitude) => {
 };
 
 export const runTimeMachine = async (latitude, longitude, years = 5) => {
-  const response = await api.post('/time-machine', {
+  const response = await geoApi.post('/time-machine', {
     latitude,
     longitude,
     years,
@@ -109,19 +161,19 @@ export const runTimeMachine = async (latitude, longitude, years = 5) => {
 };
 
 export const getNearbyHotspots = async (lat, lon, radius = 100) => {
-  const response = await api.get('/hotspots/nearby', {
+  const response = await geoApi.get('/hotspots/nearby', {
     params: { lat, lon, radius_km: radius },
   });
   return response.data;
 };
 
 export const submitReport = async (reportData) => {
-  const response = await api.post('/reports/submit', reportData);
+  const response = await geoApi.post('/reports/submit', reportData);
   return response.data;
 };
 
 export const getRegionInfo = async (lat, lon) => {
-  const response = await api.get('/region/info', {
+  const response = await geoApi.get('/region/info', {
     params: { lat, lon },
   });
   return response.data;

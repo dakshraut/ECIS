@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CalendarClock, FileText, Layers, LocateFixed, MapPin, Radar, TrendingDown, TrendingUp } from 'lucide-react';
 import { CircleMarker, MapContainer, TileLayer, useMapEvents } from 'react-leaflet';
@@ -23,12 +23,18 @@ const presets = [
   { label: 'Sahel', lat: '14.4974', lon: '-14.4524' },
 ];
 
-function PickerMarker({ latitude, longitude, onPick }) {
-  useMapEvents({
+function PickerMarker({ latitude, longitude, onPick, active }) {
+  const map = useMapEvents({
     click(event) {
       onPick(event.latlng.lat.toFixed(6), event.latlng.lng.toFixed(6));
     },
   });
+
+  useEffect(() => {
+    if (active && latitude && longitude) {
+      map.setView([Number(latitude), Number(longitude)], Math.max(map.getZoom(), 5), { animate: true });
+    }
+  }, [active, latitude, longitude, map]);
 
   if (!latitude || !longitude) {
     return null;
@@ -76,15 +82,34 @@ export default function TimeMachine() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [mapCenter, setMapCenter] = useState([28.7041, 77.1025]);
+  const [mapKey, setMapKey] = useState(0);
+  const [hasSelectedPoint, setHasSelectedPoint] = useState(true);
 
   const tone = trendTone[result?.trend] || trendTone.stable;
   const TrendIcon = tone.icon;
 
   const chartData = useMemo(() => result?.snapshots || [], [result]);
 
+  const syncSelection = (nextLatitude, nextLongitude) => {
+    const lat = Number(nextLatitude);
+    const lon = Number(nextLongitude);
+
+    if (Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+      setMapCenter([lat, lon]);
+      setHasSelectedPoint(true);
+      setMapKey((value) => value + 1);
+      return true;
+    }
+
+    setHasSelectedPoint(false);
+    return false;
+  };
+
   const handlePick = (lat, lon) => {
     setLatitude(lat);
     setLongitude(lon);
+    syncSelection(lat, lon);
     setError(null);
   };
 
@@ -139,12 +164,12 @@ export default function TimeMachine() {
           </div>
 
           <div className="h-72 overflow-hidden rounded-lg border border-gray-700">
-            <MapContainer center={[20, 78]} zoom={3} className="h-full w-full">
+            <MapContainer key={mapKey} center={mapCenter} zoom={4} className="h-full w-full">
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
-              <PickerMarker latitude={latitude} longitude={longitude} onPick={handlePick} />
+              <PickerMarker latitude={latitude} longitude={longitude} onPick={handlePick} active={hasSelectedPoint} />
             </MapContainer>
           </div>
 
@@ -154,7 +179,13 @@ export default function TimeMachine() {
               <input
                 type="number"
                 value={latitude}
-                onChange={(event) => setLatitude(event.target.value)}
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  setLatitude(nextValue);
+                  if (nextValue !== '' && longitude !== '') {
+                    syncSelection(nextValue, longitude);
+                  }
+                }}
                 className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-3 text-white outline-none transition focus:border-emerald-400"
                 step="any"
               />
@@ -164,7 +195,13 @@ export default function TimeMachine() {
               <input
                 type="number"
                 value={longitude}
-                onChange={(event) => setLongitude(event.target.value)}
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  setLongitude(nextValue);
+                  if (nextValue !== '' && latitude !== '') {
+                    syncSelection(latitude, nextValue);
+                  }
+                }}
                 className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-3 text-white outline-none transition focus:border-emerald-400"
                 step="any"
               />

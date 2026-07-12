@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { MapContainer, TileLayer, Marker, Popup, Circle, LayersControl } from 'react-leaflet';
@@ -26,10 +26,9 @@ export default function Hotspots() {
     []
   );
 
-  const hotspots = hotspotsResponse?.hotspots || hotspotsResponse?.data || [];
+  const hotspots = useMemo(() => hotspotsResponse?.hotspots || hotspotsResponse?.data || [], [hotspotsResponse]);
 
-  // Initialize selected crime types
-  useMemo(() => {
+  useEffect(() => {
     if (hotspots.length > 0 && selectedCrimeTypes.size === 0) {
       const crimeTypes = new Set(hotspots.map((h) => h.crime_type));
       setSelectedCrimeTypes(crimeTypes);

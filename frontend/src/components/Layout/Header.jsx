@@ -30,7 +30,7 @@ export default function Header() {
   }, []);
 
   return (
-    <header className="fixed top-0 left-72 right-0 h-16 bg-gray-900/80 backdrop-blur-lg border-b border-emerald-500/20 z-30 flex items-center justify-between px-6">
+    <header className="fixed top-0 left-72 right-0 h-16 bg-gray-950/90 backdrop-blur-lg border-b border-emerald-500/20 z-50 flex items-center justify-between px-6 shadow-[0_8px_30px_rgba(0,0,0,0.25)]">
       <div className="flex items-center gap-8">
         <h2 className="text-xl font-bold text-white">Environmental Crime Intelligence System</h2>
       </div>

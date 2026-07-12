@@ -566,43 +566,51 @@ class EnvironmentalRiskEngine:
 
         if land_use == "forest":
             forest = max(forest, 45)
+            agriculture = min(agriculture, 28)
         if land_use == "mining_area":
             mining = max(mining, 60)
+            agriculture = min(agriculture, 24)
         if land_use == "water":
             water = max(water, 50)
+            agriculture = min(agriculture, 26)
         if land_use == "industrial":
             industrial = max(industrial, 55)
+            agriculture = min(agriculture, 24)
         if land_use == "agricultural":
             agriculture = max(agriculture, 50)
+            forest = min(forest, 28)
+            mining = min(mining, 20)
+
+        land_degradation_score = (
+            agriculture * 0.30
+            + industrial * 0.20
+            + mining * 0.20
+            + protected_area * 0.10
+            + hotspot_by_crime.get(CrimeType.LAND_DEGRADATION.value, 0) * 0.20
+        )
 
         return {
             CrimeType.ILLEGAL_LOGGING.value: (
-                forest * 0.25
+                forest * 0.30
                 + protected_area * 0.15
-                + pressure * 0.30
+                + pressure * 0.25
                 + hotspot_by_crime.get(CrimeType.ILLEGAL_LOGGING.value, 0) * 0.30
             ),
             CrimeType.ILLEGAL_MINING.value: (
-                mining * 0.50
-                + industrial * 0.15
+                mining * 0.45
+                + industrial * 0.20
                 + protected_area * 0.15
                 + hotspot_by_crime.get(CrimeType.ILLEGAL_MINING.value, 0) * 0.20
             ),
             CrimeType.WATER_POLLUTION.value: (
-                water * 0.30
-                + waste * 0.30
+                water * 0.35
+                + waste * 0.25
                 + industrial * 0.20
-                + mining * 0.15
+                + mining * 0.10
                 + protected_area * 0.05
                 + hotspot_by_crime.get(CrimeType.WATER_POLLUTION.value, 0) * 0.25
             ),
-            CrimeType.LAND_DEGRADATION.value: (
-                agriculture * 0.30
-                + industrial * 0.25
-                + mining * 0.25
-                + protected_area * 0.10
-                + hotspot_by_crime.get(CrimeType.LAND_DEGRADATION.value, 0) * 0.25
-            ),
+            CrimeType.LAND_DEGRADATION.value: land_degradation_score,
             CrimeType.AIR_POLLUTION.value: (
                 industrial * 0.45
                 + waste * 0.20
@@ -688,30 +696,30 @@ class EnvironmentalRiskEngine:
         fallback_caps = {
             "urban": {
                 CrimeType.ILLEGAL_LOGGING.value: 8,
-                CrimeType.ILLEGAL_MINING.value: 14,
-                CrimeType.WATER_POLLUTION.value: 13,
-                CrimeType.LAND_DEGRADATION.value: 11,
+                CrimeType.ILLEGAL_MINING.value: 10,
+                CrimeType.WATER_POLLUTION.value: 11,
+                CrimeType.LAND_DEGRADATION.value: 9,
             },
             "mixed": {
-                CrimeType.ILLEGAL_LOGGING.value: 10,
-                CrimeType.ILLEGAL_MINING.value: 11,
-                CrimeType.WATER_POLLUTION.value: 13,
-                CrimeType.LAND_DEGRADATION.value: 16,
+                CrimeType.ILLEGAL_LOGGING.value: 9,
+                CrimeType.ILLEGAL_MINING.value: 10,
+                CrimeType.WATER_POLLUTION.value: 11,
+                CrimeType.LAND_DEGRADATION.value: 10,
             },
             "unknown": {
-                CrimeType.ILLEGAL_LOGGING.value: 8,
-                CrimeType.ILLEGAL_MINING.value: 9,
-                CrimeType.WATER_POLLUTION.value: 10,
-                CrimeType.LAND_DEGRADATION.value: 12,
+                CrimeType.ILLEGAL_LOGGING.value: 7,
+                CrimeType.ILLEGAL_MINING.value: 8,
+                CrimeType.WATER_POLLUTION.value: 9,
+                CrimeType.LAND_DEGRADATION.value: 8,
             },
         }
         allowed = allowed_by_land_use.get(land_use, set())
         if not allowed:
             caps = fallback_caps.get(land_use, fallback_caps["unknown"])
-            return {crime: float(min(score, caps.get(crime, 10))) for crime, score in crime_scores.items()}
+            return {crime: float(min(score, caps.get(crime, 8))) for crime, score in crime_scores.items()}
 
         return {
-            crime: float(score) if crime in allowed else float(min(score, 12))
+            crime: float(score) if crime in allowed else float(min(score, 8))
             for crime, score in crime_scores.items()
         }
 
@@ -734,16 +742,16 @@ class EnvironmentalRiskEngine:
 
         location_variation = self.coordinate_variation(lat, lon)
         base_by_land_use = {
-            "forest": 18,
-            "mining_area": 24,
-            "water": 20,
-            "industrial": 22,
-            "agricultural": 16,
-            "urban": 12,
-            "mixed": 8,
-            "unknown": 6,
+            "forest": 16,
+            "mining_area": 20,
+            "water": 18,
+            "industrial": 20,
+            "agricultural": 14,
+            "urban": 10,
+            "mixed": 7,
+            "unknown": 5,
         }
-        base = base_by_land_use.get(land_use, 8)
+        base = base_by_land_use.get(land_use, 7)
 
         spectral_values = [
             value
@@ -755,34 +763,34 @@ class EnvironmentalRiskEngine:
 
         dominant_scores = {
             "forest": {
-                CrimeType.ILLEGAL_LOGGING.value: baseline,
-                CrimeType.LAND_DEGRADATION.value: max(0, baseline - 4),
+                CrimeType.ILLEGAL_LOGGING.value: max(0, baseline - 2),
+                CrimeType.LAND_DEGRADATION.value: max(0, baseline - 6),
             },
             "mining_area": {
-                CrimeType.ILLEGAL_MINING.value: baseline,
-                CrimeType.LAND_DEGRADATION.value: max(0, baseline - 5),
+                CrimeType.ILLEGAL_MINING.value: max(0, baseline - 1),
+                CrimeType.LAND_DEGRADATION.value: max(0, baseline - 7),
             },
             "water": {
-                CrimeType.WATER_POLLUTION.value: baseline,
+                CrimeType.WATER_POLLUTION.value: max(0, baseline - 2),
             },
             "industrial": {
-                CrimeType.WATER_POLLUTION.value: baseline,
-                CrimeType.AIR_POLLUTION.value: max(0, baseline - 3),
+                CrimeType.WATER_POLLUTION.value: max(0, baseline - 2),
+                CrimeType.AIR_POLLUTION.value: max(0, baseline - 4),
             },
             "agricultural": {
-                CrimeType.LAND_DEGRADATION.value: baseline,
-                CrimeType.WATER_POLLUTION.value: max(0, baseline - 7),
+                CrimeType.LAND_DEGRADATION.value: max(0, baseline - 3),
+                CrimeType.WATER_POLLUTION.value: max(0, baseline - 8),
             },
             "urban": {
-                CrimeType.AIR_POLLUTION.value: baseline,
-                CrimeType.WATER_POLLUTION.value: max(0, baseline - 5),
+                CrimeType.AIR_POLLUTION.value: max(0, baseline - 3),
+                CrimeType.WATER_POLLUTION.value: max(0, baseline - 6),
             },
         }
         crime_scores = dominant_scores.get(
             land_use,
             {
-                CrimeType.LAND_DEGRADATION.value: baseline,
-                CrimeType.WATER_POLLUTION.value: max(0, baseline - 6),
+                CrimeType.LAND_DEGRADATION.value: max(0, baseline - 8),
+                CrimeType.WATER_POLLUTION.value: max(0, baseline - 7),
             },
         )
 

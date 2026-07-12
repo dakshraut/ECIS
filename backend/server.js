@@ -11,6 +11,7 @@ const authRoutes = require('./routes/authRoutes');
 const violationRoutes = require('./routes/violationRoutes');
 const aiIntegrationRoutes = require('./routes/aiIntegrationRoutes');
 const geospatialRoutes = require('./routes/geospatialRoutes');
+const connectDB = require('./config/db');
 
 const app = express();
 
@@ -29,28 +30,43 @@ app.use((req, res, next) => {
 });
 
 // ==================== DATABASE CONNECTION ====================
-const dbUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ecis';
-
-const connectDB = async () => {
-  try {
-    await mongoose.connect(dbUri, {
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000
-    });
-    console.log(`✅ MongoDB Connected Successfully to ${mongoose.connection.host}`);
-  } catch (err) {
-    console.error('⚠️ MongoDB Connection Error:', err.message);
-    console.warn('⚠️ Continuing without MongoDB. Start MongoDB or update MONGODB_URI to a reachable server.');
-  }
-};
-
-connectDB();
+connectDB().catch((err) => {
+  console.error('⚠️ Database bootstrap failed:', err.message);
+});
 
 // ==================== ROUTES ====================
 app.use('/api/auth', authRoutes);
 app.use('/api/violations', violationRoutes);
 app.use('/api/ai-integration', aiIntegrationRoutes);
 app.use('/api/v1', geospatialRoutes);
+
+// Compatibility endpoints for the frontend expecting /api/* paths
+app.get('/api/stats', (req, res) => {
+  res.status(200).json({
+    success: true,
+    stats: {
+      total_hotspots: 0,
+      active_reports: 0,
+      risk_level: 'low',
+    },
+  });
+});
+
+app.get('/api/hotspots', (req, res) => {
+  res.status(200).json({
+    success: true,
+    hotspots: [],
+    count: 0,
+  });
+});
+
+app.get('/api/reports', (req, res) => {
+  res.status(200).json({
+    success: true,
+    reports: [],
+    count: 0,
+  });
+});
 
 // ==================== HEALTH CHECK ENDPOINTS ====================
 // Health endpoint for frontend
@@ -133,14 +149,31 @@ app.use((err, req, res, next) => {
 });
 
 // ==================== START SERVER ====================
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.PORT) || 5000;
 
-const server = app.listen(PORT, () => {
-  console.log('\n' + '='.repeat(50));
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log('='.repeat(50) + '\n');
-});
+const startServer = (port) => {
+  const server = app.listen(port, () => {
+    console.log('\n' + '='.repeat(50));
+    console.log(`🚀 Server running on http://localhost:${port}`);
+    console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log('='.repeat(50) + '\n');
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      const fallbackPort = 5001;
+      console.error(`⚠️ Port ${port} is already in use. Trying fallback port ${fallbackPort}...`);
+      server.close(() => startServer(fallbackPort));
+    } else {
+      console.error('❌ Failed to start server:', err.message);
+      process.exit(1);
+    }
+  });
+
+  return server;
+};
+
+const server = startServer(PORT);
 
 // Handle graceful shutdown
 process.on('SIGINT', () => {

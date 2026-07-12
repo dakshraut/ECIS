@@ -1,0 +1,49 @@
+services:
+  - type: web
+    name: ecis-ai-service
+    runtime: docker
+    rootDir: ai-service
+    healthCheckPath: /health
+    envVars:
+      - key: ECIS_USER_AGENT
+        sync: false
+      - key: NOMINATIM_API_URL
+        value: https://nominatim.openstreetmap.org/reverse
+      - key: OVERPASS_API_URL
+        value: https://overpass-api.de/api/interpreter
+      - key: ECIS_SIGNAL_RADIUS_M
+        value: 3000
+
+  - type: web
+    name: ecis-backend
+    runtime: docker
+    rootDir: backend
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: AI_SERVICE_URL
+        fromService:
+          type: web
+          name: ecis-ai-service
+          property: url
+
+  - type: web
+    name: ecis-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false
+      - key: VITE_GEO_API_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
